@@ -247,6 +247,13 @@ MODULE mod_mklinelist
   ! stdout.  Errors and warnings are always printed regardless of setting.
   INTEGER, PUBLIC :: VERBOSE = 0
 
+  ! Set USE_PREDICTED = .FALSE. before calling run_mklinelist to skip every
+  ! `predict` row of lines.list (gfpred and hilines): SYNTHE's predicted=no.
+  ! Only SYNTHE calls run_mklinelist.  ATLAS12's SELECTLINES parses
+  ! lines.list itself and always keeps the predicted lines, which belong in
+  ! the opacity even where their individual wavelengths are uncertain.
+  LOGICAL, PUBLIC :: USE_PREDICTED = .TRUE.
+
   PUBLIC :: run_mklinelist
   PUBLIC :: read_diatomics_for_atlas
   PUBLIC :: read_gfall_for_atlas
@@ -575,6 +582,7 @@ CONTAINS
     CALL parse_lines_list(lines_list_path, datadir, &
                           gfall_file, predict_files, npredict, h2o_file, &
                           mol_files, nmol, polymol_files, npolymol)
+    IF (.NOT. USE_PREDICTED) npredict = 0
 
     n_lte_gfall   = 0
     n_lte_predict = 0

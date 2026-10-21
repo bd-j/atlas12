@@ -28,6 +28,13 @@
 !                       so turbv=0 silently did nothing.)
 !    more_output=<v>    (optional) if yes/true/1/on, also emit the
 !                       <model>.mol and <model>.linform files.  Default no.
+!    predicted=<v>      (optional) if no, skip every `predict` row of
+!                       lines.list (Kurucz's predicted lines: gfpred and
+!                       hilines).  Default yes.  SYNTHE only; ATLAS12 keeps
+!                       them in the opacity.
+!    kp_hydrogen=<v>    (optional) if yes, use the Peterson/Kurucz analytic
+!                       hydrogen profiles instead of the Stehle MMM tables.
+!                       Default no.  SYNTHE only.
 !
 !  Units:
 !     5  input  : model atmosphere cards (CLI argument, read by READIN)
@@ -45,7 +52,7 @@ PROGRAM SYNTHE
   
   USE synthe_module
   USE mod_mklinelist, only: run_mklinelist, lte_lines, nlte_lines, nlines_lte, &
-                            nlines_nlte, ICA4227
+                            nlines_nlte, ICA4227, USE_PREDICTED
   USE mod_parameters, only: LINE_CUTOFF, &
                             CA4227_MODE, CA4227_PP, CA4227_PS, CA4227_PX, &
                             CA4227_DLMAX, CA4227_WLA
@@ -99,7 +106,8 @@ PROGRAM SYNTHE
 
   CHARACTER(LEN=*), PARAMETER :: USAGE = &
     ' Usage: synthe_spectrv.exe <model_file> wlbeg=<nm> wlend=<nm> ' // &
-    '[resolu=<R>] [turbv=<kms>] [more_output=yes|no]'
+    '[resolu=<R>] [turbv=<kms>] [more_output=yes|no] [predicted=yes|no] ' // &
+    '[kp_hydrogen=yes|no]'
 
   ! --- Fixed run parameters (formerly read from fort.93 / SYNBEG) -------
   !   ifvac = 1 : vacuum wavelengths throughout
@@ -200,6 +208,11 @@ PROGRAM SYNTHE
   !                      Accepted true values: yes, true, 1, on.
   !                      Accepted false values: no, false, 0, off.
   !                      Default: no.
+  !   predicted=<v>    : if no, skip the `predict` rows of lines.list.
+  !                      Default: yes.
+  !   kp_hydrogen=<v>  : if yes, Peterson/Kurucz hydrogen profiles.
+  !                      Default: no.
+  !   (All three yes/no options accept the same values, via yesno().)
   ! Output file basenames are model_file with extension stripped.
   ! -----------------------------------------------------------------------
   IF (COMMAND_ARGUMENT_COUNT() .LT. 1) THEN
@@ -228,16 +241,11 @@ PROGRAM SYNTHE
       CASE ('resolu'); READ(tmparg(eqpos+1:), *) resolu
       CASE ('turbv');  READ(tmparg(eqpos+1:), *) turbv
       CASE ('more_output')
-        SELECT CASE (TRIM(ADJUSTL(tmparg(eqpos+1:))))
-          CASE ('yes', 'YES', 'true', 'TRUE', '1', 'on', 'ON', 'y', 'Y')
-            more_output = .TRUE.
-          CASE ('no', 'NO', 'false', 'FALSE', '0', 'off', 'OFF', 'n', 'N')
-            more_output = .FALSE.
-          CASE DEFAULT
-            WRITE(6,'(A,A)') ' ERROR: more_output expects yes/no, got: ', &
-              TRIM(tmparg(eqpos+1:))
-            CALL EXIT(1)
-        END SELECT
+        more_output = yesno('more_output', tmparg(eqpos+1:))
+      CASE ('predicted')
+        USE_PREDICTED = yesno('predicted', tmparg(eqpos+1:))
+      CASE ('kp_hydrogen')
+        USE_KP_HYDROGEN = yesno('kp_hydrogen', tmparg(eqpos+1:))
       CASE DEFAULT
         WRITE(6,'(A,A)') ' ERROR: unknown keyword argument: ', TRIM(tmparg)
         CALL EXIT(1)
@@ -279,6 +287,17 @@ PROGRAM SYNTHE
   WRITE(6,'(A,F10.3)') ' wlbeg (nm)       = ', wlbeg
   WRITE(6,'(A,F10.3)') ' wlend (nm)       = ', wlend
   WRITE(6,'(A,F10.1)') ' resolu           = ', resolu
+  ! Always printed, so a log says which line list and profiles made it.
+  IF (USE_PREDICTED) THEN
+    WRITE(6,'(A)')     ' predicted lines  = on'
+  ELSE
+    WRITE(6,'(A)')     ' predicted lines  = off  (predicted=no: lines.list predict rows skipped)'
+  END IF
+  IF (USE_KP_HYDROGEN) THEN
+    WRITE(6,'(A)')     ' H line profiles  = Peterson/Kurucz analytic  (kp_hydrogen=yes)'
+  ELSE
+    WRITE(6,'(A)')     ' H line profiles  = Stehle MMM tables'
+  END IF
   IF (CA4227_MODE .LT. 0) THEN
     WRITE(6,'(A)')     ' Ca I 4227        = SUPPRESSED (CA4227_MODE < 0)'
   ELSE IF (CA4227_MODE .GT. 0) THEN
@@ -750,6 +769,23 @@ PROGRAM SYNTHE
   CALL EXIT(0)
 
 CONTAINS
+
+  ! ------------------------------------------------------------------------
+  !  yesno(key, val) -- a yes/no command-line value, or exit(1) naming the
+  !  key.  Accepts yes/true/1/on/y and no/false/0/off/n, either case.
+  ! ------------------------------------------------------------------------
+  LOGICAL FUNCTION yesno(key, val)
+    CHARACTER(LEN=*), INTENT(IN) :: key, val
+    SELECT CASE (TRIM(ADJUSTL(val)))
+      CASE ('yes', 'YES', 'true', 'TRUE', '1', 'on', 'ON', 'y', 'Y')
+        yesno = .TRUE.
+      CASE ('no', 'NO', 'false', 'FALSE', '0', 'off', 'OFF', 'n', 'N')
+        yesno = .FALSE.
+      CASE DEFAULT
+        WRITE(6,'(A,A,A,A)') ' ERROR: ', key, ' expects yes/no, got: ', TRIM(val)
+        CALL EXIT(1)
+    END SELECT
+  END FUNCTION yesno
 
   ! ------------------------------------------------------------------------
   !  dump_used_lines()

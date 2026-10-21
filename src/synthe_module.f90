@@ -67,6 +67,19 @@ MODULE synthe_module
   ! ====================================================================
 
   ! ====================================================================
+  !  RUN SWITCHES, SET FROM THE COMMAND LINE BY PROGRAM SYNTHE
+  !
+  !  USE_KP_HYDROGEN -- .TRUE. (kp_hydrogen=yes) selects the original
+  !  F77-compatible Peterson/Kurucz analytic profiles for every hydrogen
+  !  line; .FALSE., the default, uses the Stehle MMM tables where they
+  !  apply.  See hydrogen_line_profile.  This was a compile-time
+  !  PARAMETER local to that function.  SYNTHE only: ATLAS12's HLINOP
+  !  always uses STARK_MMM, so the switch changes the spectrum and not
+  !  the atmosphere.
+  ! ====================================================================
+  LOGICAL :: USE_KP_HYDROGEN = .FALSE.
+
+  ! ====================================================================
   !  WEIDEMAN (1994) VOIGT FUNCTION COEFFICIENTS
   !
   !  N=32 rational approximation of the Faddeeva function
@@ -981,7 +994,8 @@ CONTAINS
 !  transition n→m at atmospheric depth j, evaluated at wavelength
 !  offset delw (nm) from the line centre stored in the line list.
 !
-!  Two code paths are available, selected by USE_KP_HYDROGEN below:
+!  Two code paths are available, selected by the module switch
+!  USE_KP_HYDROGEN (SYNTHE's kp_hydrogen= option):
 !
 !  STEHLÉ PATH (default, USE_KP_HYDROGEN=.FALSE.):
 !    Uses pre-tabulated Stehlé & Hutcheon (1999) / Stehlé & Fouquet
@@ -1035,14 +1049,11 @@ CONTAINS
     REAL(4),  INTENT(IN) :: dopph(kw)
     REAL(4)              :: result
 
-    ! ---------------------------------------------------------------
-    ! Profile path selector.
-    ! Set USE_KP_HYDROGEN = .TRUE. to use the original F77-compatible
-    ! Peterson/Kurucz analytic profiles for all lines.  The default
-    ! (.FALSE.) uses Stehlé MMM tables where available, which produces
-    ! smoother, more physically accurate profiles for high Balmer lines.
-    ! ---------------------------------------------------------------
-    LOGICAL, PARAMETER :: USE_KP_HYDROGEN = .FALSE.
+    ! Profile path: the module switch USE_KP_HYDROGEN (kp_hydrogen=yes)
+    ! selects the original F77-compatible Peterson/Kurucz analytic
+    ! profiles for all lines.  The default (.FALSE.) uses Stehlé MMM
+    ! tables where available, which produces smoother, more physically
+    ! accurate profiles for high Balmer lines.
 
     ! Lyman alpha H2+ quasi-molecular cutoff table
     REAL(4), PARAMETER :: CUTOFFH2PLUS(111) = [ &

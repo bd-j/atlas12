@@ -240,11 +240,10 @@ equilibrium is switched off and the Saha/`NELECT` path with ionization
 stages to X is used instead, 10000 K), `IROSSTAB` (Rosseland-table interpolation:
 1=bilinear, 2=Shepard, 3=moving least squares), and `IQUAD` (`INTEG`
 quadrature: 0=legacy blended-parabola, 1=Steffen monotone cubic).
-`USE_KP_HYDROGEN` (Kurucz–Peterson hydrogen Stark profiles instead of
-Stehlé–Hutcheon) lives in `synthe_module.f90`, and `CA4227_MODE`
-(Ca I 4227 resonance profile) and `NLTE_MODE` (departure coefficients
-for selected lines, see "Departure coefficients" below) live in
-`mod_parameters`.
+`CA4227_MODE` (Ca I 4227 resonance profile) and `NLTE_MODE` (departure
+coefficients for selected lines, see "Departure coefficients" below) live
+in `mod_parameters`.  The Kurucz–Peterson hydrogen profiles, formerly the
+compile-time `USE_KP_HYDROGEN`, are now SYNTHE's `kp_hydrogen=` option.
 
 ### Teff-dependent switches
 
@@ -276,6 +275,7 @@ Equilibrium **condensation** is gated on the local temperature
 ```
 export ATLAS12=/path/to/atlas12/
 synthe.exe <model_file> wlbeg=<nm> wlend=<nm> [resolu=<R>] [turbv=<kms>] [more_output=<yes|no>]
+           [predicted=<yes|no>] [kp_hydrogen=<yes|no>]
 ```
 
 The merged executable performs line-list construction, continuum opacity
@@ -296,6 +296,12 @@ Arguments:
 | `resolu=<R>`          | no       | Resolving power λ/Δλ (default 300 000) |
 | `turbv=<kms>`         | no       | Microturbulence in km/s. If > 0, **replaces** the model atmosphere's microturbulence at all depths; if omitted or ≤ 0 (default 0.0), the per-layer value from the input model is used |
 | `more_output=<yes\|no>` | no     | If yes, also write `.linform` and `.mol` diagnostic files (default no).  Accepted truthy values: `yes`, `true`, `1`, `on`, `y` (case-insensitive); falsy: `no`, `false`, `0`, `off`, `n`. |
+| `predicted=<yes\|no>`  | no      | If no, skip every `predict` row of `lines.list`, i.e. Kurucz's predicted lines (`gfpred`, `hilines`); default yes.  SYNTHE only: ATLAS12 keeps them in its opacity, so the atmosphere is unchanged and only their spectral features go.  Same values as `more_output` |
+| `kp_hydrogen=<yes\|no>` | no     | If yes, use the Kurucz–Peterson analytic hydrogen profiles for every line instead of the Stehlé MMM tables; default no.  SYNTHE only: ATLAS12's hydrogen opacity always uses the Stehlé tables.  Same values as `more_output` |
+
+The run banner always reports both, as `predicted lines  = on|off` and
+`H line profiles  = ...`, so a log records which line list and profiles
+made the spectrum.
 
 The output basename is derived from the model filename by stripping the
 leading directory and trailing extension.  For example,
